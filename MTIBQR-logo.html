@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTIB QR Code Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f4f4f9;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: left;
+            max-width: 400px;
+            width: 100%;
+        }
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #222;
+        }
+        input[type="text"] {
+            width: 94%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        input[type="color"] {
+            width: 100%;
+            height: 40px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 0;
+            background: none;
+        }
+        .qr-wrapper {
+            margin: 25px 0;
+            display: flex;
+            justify-content: center;
+        }
+        /* Hidden image element used to safely load the logo in the background */
+        #logo-buffer {
+            display: none;
+        }
+        .btn-download {
+            width: 100%;
+            padding: 12px;
+            background-color: #005a36; /* MTIB Green */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-download:hover {
+            background-color: #004225;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>MTIB QR Generator</h2>
+    
+    <div class="form-group">
+        <label for="text-input">URL / Text:</label>
+        <input type="text" id="text-input" value="https://www.mtib.gov.my" oninput="generateQR()">
+    </div>
+
+    <div class="form-group">
+        <label for="color-input">QR Code Color:</label>
+        <input type="color" id="color-input" value="#005a36" onchange="generateQR()">
+    </div>
+    
+    <div class="qr-wrapper">
+        <canvas id="qr-canvas" width="300" height="300"></canvas>
+    </div>
+    
+    <button class="btn-download" onclick="downloadQR()">Download QR Code</button>
+</div>
+
+<img id="logo-buffer" src="mtiblogo.png" alt="logo">
+
+<script>
+    function generateQR() {
+        const inputData = document.getElementById("text-input").value;
+        const selectedColor = document.getElementById("color-input").value;
+        const canvas = document.getElementById("qr-canvas");
+        const ctx = canvas.getContext("2d");
+        const logo = document.getElementById("logo-buffer");
+
+        if (inputData.trim() === "") {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+
+        try {
+            // 1. Generate QR matrix data (Type 0 auto-detects size, Error Correction H is max capacity)
+            const qr = qrcode(0, 'H');
+            qr.addData(inputData);
+            qr.make();
+
+            // Calculate sizing dynamically to fill our 300x300 canvas perfectly
+            const moduleCount = qr.getModuleCount();
+            const cellSize = Math.floor(canvas.width / moduleCount);
+            const margin = Math.floor((canvas.width - (moduleCount * cellSize)) / 2);
+
+            // Clear previous canvas drawing
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 2. Draw the QR code modules (dots) manually
+            ctx.fillStyle = selectedColor;
+            for (let row = 0; row < moduleCount; row++) {
+                for (let col = 0; col < moduleCount; col++) {
+                    if (qr.isDark(row, col)) {
+                        ctx.fillRect(
+                            margin + col * cellSize, 
+                            margin + row * cellSize, 
+                            cellSize, 
+                            cellSize
+                        );
+                    }
+                }
+            }
+
+            // 3. Draw the MTIB Logo in the absolute center
+            // Check if logo image is loaded successfully and has width
+            if (logo && logo.complete && logo.naturalWidth !== 0) {
+                const logoSize = 64; // Size of the logo in pixels
+                const center = canvas.width / 2;
+                const startPos = center - (logoSize / 2);
+
+                // Draw a solid white background card behind the logo so it stands out cleanly
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(startPos - 4, startPos - 4, logoSize + 8, logoSize + 8);
+
+                // Draw the logo image on top
+                ctx.drawImage(logo, startPos, startPos, logoSize, logoSize);
+            }
+        } catch (error) {
+            console.error("QR Generation failed: ", error);
+        }
+    }
+
+    function downloadQR() {
+        const canvas = document.getElementById("qr-canvas");
+        try {
+            const downloadLink = document.createElement("a");
+            downloadLink.href = canvas.toDataURL("image/png");
+            downloadLink.download = "mtib-qrcode.png";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        } catch (e) {
+            alert("Security block: If you are running this file locally (double-clicking the HTML file), your browser blocks downloading canvases containing local images. Try testing it via a local server (like Live Server) or upload it to your web directory!");
+        }
+    }
+
+    // Trigger on load. We give the logo a tiny split-second to ensure it's cached in memory.
+    window.onload = function() {
+        setTimeout(generateQR, 200);
+    };
+</script>
+
+</body>
+</html>
